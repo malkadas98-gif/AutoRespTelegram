@@ -1,29 +1,6 @@
-# Flask & Web Framework
 Flask==2.3.3
-Flask-SQLAlchemy==3.0.5
-Flask-Cors==4.0.0
 gunicorn==20.1.0
-
-# Telegram Bot
-python-telegram-bot==20.4
-aiohttp==3.8.5
-
-# Database
-SQLAlchemy==2.0.20
-psycopg2-binary==2.9.7  # لـ PostgreSQL على Render
-
-# Amadeus SDK
-amadeus==8.0.0
-
-# NLP & Text Processing
-nltk==3.8.1
-python-dateutil==2.8.2
-arabic-reshaper==3.0.0
-python-bidi==0.4.2
-
-# Utilities
 requests==2.31.0
-pandas==2.0.3
-numpy==1.24.3
 python-dotenv==1.0.0
-pyyaml==6.0
+flask-sqlalchemy==3.0.5
+python-telegram-bot==21.7
