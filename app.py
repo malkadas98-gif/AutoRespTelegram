@@ -15,10 +15,14 @@ if not BOT_TOKEN:
 # =====================
 # Flask + SQLite (Render Safe)
 # =====================
-DB_PATH = "instance/flight_bot.db"
-os.makedirs("instance", exist_ok=True)
-DATABASE_URL = f"sqlite:///{DB_PATH}"
-print("🗄️ Using SQLite DB at:", DB_PATH)
+
+
+if os.environ.get("RENDER") == "1":  # if running on Render
+    db_path = "/tmp/flight_bot.db"
+else:
+    db_path = "instance/flight_bot.db"
+
+SQLALCHEMY_DATABASE_URI = f"sqlite:///{db_path}"
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
