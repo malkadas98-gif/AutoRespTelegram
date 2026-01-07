@@ -15,8 +15,8 @@ if not BOT_TOKEN:
 # =====================
 # Flask + SQLite (Render Safe)
 # =====================
-DB_PATH = "/data/flight_bot.db"
-os.makedirs("/data", exist_ok=True)
+DB_PATH = "/instance/flight_bot.db"
+os.makedirs("/instance", exist_ok=True)
 
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 print("🗄️ Using SQLite DB at:", DB_PATH)
