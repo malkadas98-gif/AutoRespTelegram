@@ -1,6 +1,5 @@
 import os
 import asyncio
-import threading
 from datetime import datetime
 
 from flask import Flask, request, jsonify
@@ -22,32 +21,27 @@ from intent_analyzer import IntentAnalyzer
 from flight_system import flight_system
 
 # ===============================
-# Environment Variables
+# Environment
 # ===============================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-SECRET_KEY = os.getenv("SECRET_KEY", "dev-key")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # https://your-app.onrender.com
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///flight_bot.db")
 
 # ===============================
 # Flask App
 # ===============================
 app = Flask(__name__)
-app.config["SECRET_KEY"] = SECRET_KEY
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # ===============================
-# Database Init
+# Database
 # ===============================
 init_db(app)
 
-def setup_database():
-    with app.app_context():
-        db.create_all()
-        add_initial_data()
-        print("✅ Database ready")
-
-setup_database()
+with app.app_context():
+    db.create_all()
+    add_initial_data()
 
 # ===============================
 # NLP & Intent
@@ -86,75 +80,55 @@ def log_search_history(user_id, text, nlp_result, success, flights_found=0):
             db.session.add(search)
             db.session.commit()
     except Exception as e:
-        print(f"❌ Search log failed: {e}")
+        print(f"❌ Log failed: {e}")
 
 # ===============================
 # Core Logic
 # ===============================
 async def process_flight_query(text, user_id=None):
-    try:
-        intent = intent_analyzer.analyze_intent(text)
+    intent = intent_analyzer.analyze_intent(text)
 
-        # Direct responses
-        if intent["intent"] in [
-            "greeting", "thanks", "help",
-            "general_question", "gibberish", "unclear"
-        ]:
-            return intent["response"]
+    if intent["intent"] in [
+        "greeting", "thanks", "help",
+        "general_question", "gibberish", "unclear"
+    ]:
+        return intent["response"]
 
-        # NLP
-        nlp_result = nlp_engine.process_query(text)
+    nlp_result = nlp_engine.process_query(text)
 
-        should_call_api = intent_analyzer.should_use_amadeus(
-            intent, nlp_result
-        )
+    should_call = intent_analyzer.should_use_amadeus(intent, nlp_result)
 
-        if should_call_api and nlp_result.get("success"):
-            q = nlp_result["query"]
+    if should_call and nlp_result.get("success"):
+        q = nlp_result["query"]
 
-            with app.app_context():
-                result = flight_system.search_flights_safe(
-                    q["origin"],
-                    q["destination"],
-                    q["date"],
-                    q["adults"]
+        with app.app_context():
+            result = flight_system.search_flights_safe(
+                q["origin"],
+                q["destination"],
+                q["date"],
+                q["adults"]
+            )
+
+            formatted = flight_system.format_flight_results(result)
+            messages = flight_system.get_flight_response_messages(
+                q, formatted
+            )
+
+            if user_id:
+                log_search_history(
+                    user_id,
+                    text,
+                    nlp_result,
+                    True,
+                    formatted.get("count", 0)
                 )
 
-                formatted = flight_system.format_flight_results(result)
-                messages = flight_system.get_flight_response_messages(
-                    q, formatted
-                )
+            return messages
 
-                if user_id:
-                    log_search_history(
-                        user_id,
-                        text,
-                        nlp_result,
-                        True,
-                        formatted.get("count", 0)
-                    )
-
-                return messages
-
-        if not nlp_result.get("success"):
-            missing = nlp_result.get("missing_info", [])
-            if missing:
-                return (
-                    "✈️ أحتاج معلومات إضافية:\n"
-                    f"📋 {', '.join(missing)}\n\n"
-                    "مثال:\n"
-                    "رحلة من الرياض إلى دبي يوم 15 ديسمبر"
-                )
-
-        return (
-            "🤖 أستطيع مساعدتك في البحث عن رحلات الطيران.\n\n"
-            "مثال:\n"
-            "رحلة من جدة إلى اسطنبول غداً"
-        )
-
-    except Exception as e:
-        print(f"❌ Processing error: {e}")
-        return "❌ حدث خطأ، حاول مرة أخرى."
+    return (
+        "✈️ اكتب طلبك بهذا الشكل:\n\n"
+        "رحلة من الرياض إلى دبي يوم 20 ديسمبر"
+    )
 
 # ===============================
 # Telegram Handlers
@@ -162,8 +136,6 @@ async def process_flight_query(text, user_id=None):
 async def telegram_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     text = update.message.text
-
-    print(f"📩 {user.first_name}: {text}")
 
     response = await process_flight_query(text, str(user.id))
 
@@ -179,50 +151,45 @@ async def telegram_media_handler(update: Update, context: ContextTypes.DEFAULT_T
         "✍️ اكتب تفاصيل رحلتك نصياً."
     )
 
-def setup_telegram_handlers():
-    telegram_app.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, telegram_text_handler)
-    )
-    telegram_app.add_handler(
-        MessageHandler(filters.PHOTO | filters.Document.ALL, telegram_media_handler)
-    )
-    print("✅ Telegram handlers ready")
-
-def run_telegram_bot():
-    setup_telegram_handlers()
-    telegram_app.run_polling()
+telegram_app.add_handler(
+    MessageHandler(filters.TEXT & ~filters.COMMAND, telegram_text_handler)
+)
+telegram_app.add_handler(
+    MessageHandler(filters.PHOTO | filters.Document.ALL, telegram_media_handler)
+)
 
 # ===============================
-# Optional API (for testing only)
+# Webhook Route
+# ===============================
+@app.route("/telegram-webhook", methods=["POST"])
+def telegram_webhook():
+    update = Update.de_json(request.get_json(), telegram_app.bot)
+    asyncio.run(telegram_app.process_update(update))
+    return "OK"
+
+# ===============================
+# Health Check
 # ===============================
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "service": "flight-bot"})
+    return jsonify({"status": "ok"})
 
 # ===============================
-# Main (Render Background Service)
+# Startup
 # ===============================
 if __name__ == "__main__":
-    print("🚀 Flight Bot starting (Render Background Service)")
+    print("🚀 Starting Telegram Webhook Bot")
 
     with app.app_context():
         flight_system.init_app(app)
         nlp_engine.init_app(app)
 
-        try:
-            flight_system.get_amadeus_token()
-            print("✅ Amadeus connected")
-        except Exception as e:
-            print(f"⚠️ Amadeus unavailable: {e}")
-
-    telegram_thread = threading.Thread(
-        target=run_telegram_bot,
-        daemon=True
+    # Set webhook
+    asyncio.run(
+        telegram_app.bot.set_webhook(
+            url=f"{WEBHOOK_URL}/telegram-webhook"
+        )
     )
-    telegram_thread.start()
 
-    print("🤖 Telegram bot is running")
-
-    # Keep service alive
-    while True:
-        asyncio.sleep(3600)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
