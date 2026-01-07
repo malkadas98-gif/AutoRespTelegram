@@ -1,16 +1,10 @@
 services:
   - type: web
-    name: flight-bot
+    name: telegram-test
     env: python
-    region: frankfurt  # يمكن تغييرها حسب موقعك
-    buildCommand: |
-      pip install --upgrade pip
-      pip install -r requirements.txt
-      pip install gunicorn
-    startCommand: gunicorn app:app --bind 0.0.0.0:10000 --timeout 120 --worker-class sync
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
-    healthCheckPath: /health
-    autoDeploy: true
-    plan: free  # يمكن تغييرها إلى paid للحصول على مزيد من الموارد
+      - key: PORT
+        value: 10000
+    plan: free
