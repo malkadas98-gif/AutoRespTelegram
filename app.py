@@ -14,7 +14,6 @@ from flight_system import flight_system, search_flights, get_cheapest_flight
 
 from datetime import datetime
 from intent_analyzer import IntentAnalyzer
-from image_processor import FlightImageProcessor
 
 # إنشاء محلل النوايا
 intent_analyzer = IntentAnalyzer()
@@ -55,73 +54,33 @@ nlp_engine = FlightNLP()
 
 # تطبيق التلقرام
 telegram_app = ApplicationBuilder().token(BOT_TOKEN).build()
-image_processor = FlightImageProcessor(telegram_app)
 
-async def handle_image_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """معالجة الرسائل التي تحتوي على صور للتذاكر"""
+async def handle_media_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """معالجة الرسائل التي تحتوي على ملفات وسائط (صور/وثائق)"""
     try:
         user = update.message.from_user
         
-        print(f"🖼️ استقبلت صورة تذكرة من {user.first_name}")
+        print(f"📎 استقبلت ملف وسائط من {user.first_name}")
         
-        await update.message.reply_text("⏳ جاري معالجة صورة التذكرة والبحث عن الرحلات...")
+        # الرد بأن النظام لا يدعم معالجة الصور
+        response = (
+            "📸 **ملاحظة حول الملفات المرسلة:**\n\n"
+            "حالياً، النظام لا يدعم معالجة الصور أو المستندات.\n\n"
+            "💡 **يرجى إدخال تفاصيل رحلتك نصياً مثل:**\n"
+            "• رحلة من القاهرة إلى دبي يوم 25 نوفمبر\n"
+            "• أريد السفر من الرياض إلى اسطنبول غداً\n"
+            "• ابحث عن تذاكر من جدة إلى لندن لشخصين\n\n"
+            "**تنسيقات مدعومة:**\n"
+            "• رحلة من [المدينة] إلى [الوجهة] في [التاريخ]\n"
+            "• سفر من [رمز المطار] إلى [رمز المطار] [التاريخ]\n"
+            "• ابحث عن رحلات من [المدينة] إلى [الوجهة]"
+        )
         
-        # الحصول على الصورة
-        if update.message.photo:
-            photo = update.message.photo[-1]
-            file_id = photo.file_id
-        elif update.message.document:
-            file_id = update.message.document.file_id
-        else:
-            await update.message.reply_text("❌ لم أستطع التعرف على الصورة")
-            return
-        
-        # تحميل الصورة
-        image_data = await image_processor.download_telegram_image(file_id)
-        if not image_data:
-            await update.message.reply_text("❌ فشل في تحميل الصورة")
-            return
-        
-        # استخراج النص من الصورة
-        extracted_text = await image_processor.extract_text_from_image(image_data)
-        
-        if extracted_text:
-            print(f"📄 النص المستخرج: {extracted_text}")
-            
-            # تحليل معلومات الرحلة من النص
-            flight_info = image_processor.parse_flight_info_from_image(extracted_text)
-            
-            if flight_info['success']:
-                # استخدام الاستعلام المستخرج للبحث عن الرحلات
-                search_query = flight_info['search_query']
-                print(f"🔍 استخراج الاستعلام: {search_query}")
-                
-                # معالجة الاستعلام باستخدام النظام الرئيسي
-                reply_message = await process_flight_query(search_query, user_id=str(user.id))
-                
-                if isinstance(reply_message, list):
-                    for msg in reply_message:
-                        await update.message.reply_text(msg, parse_mode='Markdown')
-                else:
-                    await update.message.reply_text(reply_message, parse_mode='Markdown')
-                
-            else:
-                response = (
-                    "❌ لم أتمكن من قراءة معلومات الرحلة من الصورة.\n\n"
-                    "💡 **تأكد من:**\n"
-                    "• وضوح صورة التذكرة\n" 
-                    "• ظهور رموز المطارات والتواريخ بشكل واضح\n"
-                    "• إضاءة كافية للصورة\n\n"
-                    "يمكنك إرسال صورة أوضح أو كتابة تفاصيل رحلتك نصياً مثل:\n"
-                    "\"رحلة من CAI إلى SFO يوم 25 NOV\""
-                )
-                await update.message.reply_text(response)
-        else:
-            await update.message.reply_text("❌ فشل في قراءة النص من الصورة")
+        await update.message.reply_text(response, parse_mode='Markdown')
             
     except Exception as e:
-        print(f"❌ خطأ في معالجة صورة التذكرة: {e}")
-        await update.message.reply_text("❌ حدث خطأ في معالجة الصورة. يرجى المحاولة مرة أخرى.")
+        print(f"❌ خطأ في معالجة رسالة الوسائط: {e}")
+        await update.message.reply_text("❌ حدث خطأ في معالجة الرسالة. يرجى المحاولة مرة أخرى.")
 
 def log_search_history(user_id, query_text, nlp_result, success, flights_found=0):
     """تسجيل تاريخ البحث"""
@@ -257,9 +216,8 @@ def setup_telegram_handlers():
     # إضافة مستمع للرسائل النصية (يستثني الأوامر)
     telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, telegram_auto_reply))
 
-    telegram_app.add_handler(MessageHandler(filters.PHOTO, handle_image_message))
-
-    telegram_app.add_handler(MessageHandler(filters.Document.IMAGE, handle_image_message))
+    # معالجة الصور والمستندات للرد بأن النظام لا يدعمها
+    telegram_app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE | filters.Document.ALL, handle_media_message))
 
     print("✅ تم إعداد معالجات رسائل التلقرام")
 
