@@ -1,0 +1,136 @@
+2025-11-05 00:27:52,699 - __main__ - INFO - 🚀 بدء تشغيل نظام حجز الرحلات...
+2025-11-05 00:27:52,700 - __main__ - INFO - 🔄 ترقية قاعدة البيانات...
+2025-11-05 00:27:52,745 - __main__ - INFO - ✅ تمت ترقية قاعدة البيانات
+2025-11-05 00:27:52,745 - __main__ - INFO - 🔄 إنشاء البيانات الافتراضية...
+2025-11-05 00:27:52,754 - __main__ - INFO - ✅ تم إنشاء البيانات الافتراضية
+2025-11-05 00:27:52,755 - __main__ - INFO - 🔄 تهيئة محرك NLP...
+2025-11-05 00:27:52,759 - __main__ - INFO - ✅ تم تهيئة محرك NLP
+2025-11-05 00:27:52,759 - __main__ - INFO - 🔄 التحقق من اتصال Amadeus API...
+2025-11-05 00:27:54,251 - flight_api - INFO - ✅ تم الحصول على token من Amadeus بنجاح
+2025-11-05 00:27:54,252 - __main__ - INFO - ✅ الاتصال بـ Amadeus API ناجح
+2025-11-05 00:27:54,263 - __main__ - INFO - 📊 حالة البيانات: {'arabic_cities': 0, 'english_cities': 0, 'arabic_months': 12, 'text_replacements': 9, 'airlines': 0, 'query_patterns': 6}
+2025-11-05 00:27:54,263 - __main__ - INFO - 🎉 تم تهيئة النظام بنجاح!
+2025-11-05 00:27:54,264 - __main__ - INFO - 🤖 بدء تشغيل بوت التلقرام...
+2025-11-05 00:27:54,264 - __main__ - INFO - ✅ بدأ تشغيل بوت التلقرام في الخلفية
+2025-11-05 00:27:54,265 - __main__ - INFO - 🌐 بدأ تشغيل تطبيق Flask على المنفذ 5000
+2025-11-05 00:27:54,264 - __main__ - INFO - ✅ تم إعداد معالجات رسائل التلقرام
+2025-11-05 00:27:54,276 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.100.100:5000
+2025-11-05 00:27:54,277 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-11-05 00:27:55,074 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getMe "HTTP/1.1 200 OK"
+2025-11-05 00:27:55,278 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/deleteWebhook "HTTP/1.1 200 OK"
+2025-11-05 00:27:55,281 - telegram.ext.Application - INFO - Application started
+2025-11-05 00:28:02,562 - __main__ - INFO - 🚀 بدء تشغيل نظام حجز الرحلات...
+2025-11-05 00:28:02,563 - __main__ - INFO - 🔄 ترقية قاعدة البيانات...
+2025-11-05 00:28:02,603 - __main__ - INFO - ✅ تمت ترقية قاعدة البيانات
+2025-11-05 00:28:02,604 - __main__ - INFO - 🔄 إنشاء البيانات الافتراضية...
+2025-11-05 00:28:02,613 - __main__ - INFO - ✅ تم إنشاء البيانات الافتراضية
+2025-11-05 00:28:02,614 - __main__ - INFO - 🔄 تهيئة محرك NLP...
+2025-11-05 00:28:02,619 - __main__ - INFO - ✅ تم تهيئة محرك NLP
+2025-11-05 00:28:02,619 - __main__ - INFO - 🔄 التحقق من اتصال Amadeus API...
+2025-11-05 00:28:03,911 - flight_api - INFO - ✅ تم الحصول على token من Amadeus بنجاح
+2025-11-05 00:28:03,913 - __main__ - INFO - ✅ الاتصال بـ Amadeus API ناجح
+2025-11-05 00:28:03,924 - __main__ - INFO - 📊 حالة البيانات: {'arabic_cities': 0, 'english_cities': 0, 'arabic_months': 12, 'text_replacements': 9, 'airlines': 0, 'query_patterns': 6}
+2025-11-05 00:28:03,924 - __main__ - INFO - 🎉 تم تهيئة النظام بنجاح!
+2025-11-05 00:28:03,925 - __main__ - INFO - 🤖 بدء تشغيل بوت التلقرام...
+2025-11-05 00:28:03,925 - __main__ - INFO - ✅ بدأ تشغيل بوت التلقرام في الخلفية
+2025-11-05 00:28:03,925 - __main__ - INFO - ✅ تم إعداد معالجات رسائل التلقرام
+2025-11-05 00:28:03,925 - __main__ - INFO - 🌐 بدأ تشغيل تطبيق Flask على المنفذ 5000
+2025-11-05 00:28:03,936 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.100.100:5000
+2025-11-05 00:28:03,936 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-11-05 00:28:04,536 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getMe "HTTP/1.1 200 OK"
+2025-11-05 00:28:04,777 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/deleteWebhook "HTTP/1.1 200 OK"
+2025-11-05 00:28:04,778 - telegram.ext.Application - INFO - Application started
+2025-11-05 00:28:15,198 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:28:15,199 - __main__ - INFO - 📩 رسالة من Mohammed (8552861457): اريد رحله من دبي الى الرياض لشخصين يوم غدا
+2025-11-05 00:28:15,200 - __main__ - INFO - 🎯 معالجة استعلام: اريد رحله من دبي الى الرياض لشخصين يوم غدا
+2025-11-05 00:28:15,201 - __main__ - INFO - 📊 تحليل النية: flight_search
+2025-11-05 00:28:15,201 - __main__ - ERROR - ❌ خطأ عام في معالجة الاستعلام: 'FlightNLP' object has no attribute 'process_query_advanced'
+Traceback (most recent call last):
+  File "d:\source\Python\AutoRespTelegram\app.py", line 162, in process_flight_query
+    nlp_result = nlp_engine.process_query_advanced(user_text)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'FlightNLP' object has no attribute 'process_query_advanced'
+2025-11-05 00:28:15,927 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/sendMessage "HTTP/1.1 200 OK"
+2025-11-05 00:28:15,929 - __main__ - INFO - ✅ تم الرد على Mohammed في 0.73 ثانية
+2025-11-05 00:28:25,411 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:28:34,653 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:28:34,654 - __main__ - INFO - 📩 رسالة من Mohammed (8552861457): من القاهره
+إلى الصين
+يوم 20ديسمبر
+2025-11-05 00:28:34,655 - __main__ - INFO - 🎯 معالجة استعلام: من القاهره
+إلى الصين
+يوم 20ديسمبر
+2025-11-05 00:28:34,656 - __main__ - INFO - 📊 تحليل النية: unclear
+2025-11-05 00:28:35,419 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/sendMessage "HTTP/1.1 200 OK"
+2025-11-05 00:28:35,421 - __main__ - INFO - ✅ تم الرد على Mohammed في 0.77 ثانية
+2025-11-05 00:28:44,864 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:28:48,911 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:28:48,912 - __main__ - INFO - 📩 رسالة من Mohammed (8552861457): رحلة من الرياض إلى دبي يوم 20 ديسمبر
+2025-11-05 00:28:48,913 - __main__ - INFO - 🎯 معالجة استعلام: رحلة من الرياض إلى دبي يوم 20 ديسمبر
+2025-11-05 00:28:48,913 - __main__ - INFO - 📊 تحليل النية: flight_search
+2025-11-05 00:28:48,913 - __main__ - ERROR - ❌ خطأ عام في معالجة الاستعلام: 'FlightNLP' object has no attribute 'process_query_advanced'
+Traceback (most recent call last):
+  File "d:\source\Python\AutoRespTelegram\app.py", line 162, in process_flight_query
+    nlp_result = nlp_engine.process_query_advanced(user_text)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'FlightNLP' object has no attribute 'process_query_advanced'
+2025-11-05 00:28:49,647 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/sendMessage "HTTP/1.1 200 OK"
+2025-11-05 00:28:49,649 - __main__ - INFO - ✅ تم الرد على Mohammed في 0.74 ثانية
+2025-11-05 00:29:07,882 - __main__ - INFO - 🚀 بدء تشغيل نظام حجز الرحلات...
+2025-11-05 00:29:07,883 - __main__ - INFO - 🔄 ترقية قاعدة البيانات...
+2025-11-05 00:29:07,961 - __main__ - INFO - ✅ تمت ترقية قاعدة البيانات
+2025-11-05 00:29:07,962 - __main__ - INFO - 🔄 إنشاء البيانات الافتراضية...
+2025-11-05 00:29:07,981 - __main__ - INFO - ✅ تم إنشاء البيانات الافتراضية
+2025-11-05 00:29:07,981 - __main__ - INFO - 🔄 تهيئة محرك NLP...
+2025-11-05 00:29:07,985 - __main__ - INFO - ✅ تم تهيئة محرك NLP
+2025-11-05 00:29:07,986 - __main__ - INFO - 🔄 التحقق من اتصال Amadeus API...
+2025-11-05 00:29:09,322 - flight_api - INFO - ✅ تم الحصول على token من Amadeus بنجاح
+2025-11-05 00:29:09,325 - __main__ - INFO - ✅ الاتصال بـ Amadeus API ناجح
+2025-11-05 00:29:09,334 - __main__ - INFO - 📊 حالة البيانات: {'arabic_cities': 0, 'english_cities': 0, 'arabic_months': 12, 'text_replacements': 9, 'airlines': 0, 'query_patterns': 6}
+2025-11-05 00:29:09,335 - __main__ - INFO - 🎉 تم تهيئة النظام بنجاح!
+2025-11-05 00:29:09,335 - __main__ - INFO - 🤖 بدء تشغيل بوت التلقرام...
+2025-11-05 00:29:09,335 - __main__ - INFO - ✅ بدأ تشغيل بوت التلقرام في الخلفية
+2025-11-05 00:29:09,335 - __main__ - INFO - ✅ تم إعداد معالجات رسائل التلقرام
+2025-11-05 00:29:09,336 - __main__ - INFO - 🌐 بدأ تشغيل تطبيق Flask على المنفذ 5000
+2025-11-05 00:29:09,346 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.100.100:5000
+2025-11-05 00:29:09,347 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-11-05 00:29:10,062 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getMe "HTTP/1.1 200 OK"
+2025-11-05 00:29:10,316 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/deleteWebhook "HTTP/1.1 200 OK"
+2025-11-05 00:29:10,319 - telegram.ext.Application - INFO - Application started
+2025-11-05 00:29:21,176 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:29:31,445 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:29:41,996 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:29:52,526 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:30:03,219 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:30:13,429 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:30:23,699 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:30:34,664 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:30:42,337 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:30:42,338 - __main__ - INFO - 📩 رسالة من Mohammed (8552861457): شكرا
+2025-11-05 00:30:42,338 - __main__ - INFO - 🎯 معالجة استعلام: شكرا
+2025-11-05 00:30:42,339 - __main__ - INFO - 📊 تحليل النية: thanks
+2025-11-05 00:30:43,011 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/sendMessage "HTTP/1.1 200 OK"
+2025-11-05 00:30:43,013 - __main__ - INFO - ✅ تم الرد على Mohammed في 0.68 ثانية
+2025-11-05 00:30:48,702 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:30:48,704 - __main__ - INFO - 📩 رسالة من Mohammed (8552861457): تلسلبسيبيس
+2025-11-05 00:30:48,704 - __main__ - INFO - 🎯 معالجة استعلام: تلسلبسيبيس
+2025-11-05 00:30:48,710 - __main__ - INFO - 📊 تحليل النية: unknown_but_acceptable
+2025-11-05 00:30:48,710 - __main__ - ERROR - ❌ خطأ عام في معالجة الاستعلام: 'FlightNLP' object has no attribute 'process_query_advanced'
+Traceback (most recent call last):
+  File "d:\source\Python\AutoRespTelegram\app.py", line 162, in process_flight_query
+    nlp_result = nlp_engine.process_query_advanced(user_text)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'FlightNLP' object has no attribute 'process_query_advanced'
+2025-11-05 00:30:49,355 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/sendMessage "HTTP/1.1 200 OK"
+2025-11-05 00:30:49,356 - __main__ - INFO - ✅ تم الرد على Mohammed في 0.65 ثانية
+2025-11-05 00:30:59,490 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
+2025-11-05 00:31:10,118 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8232016087:AAGLKzXUMcvwxiYeFoaeARzpBHrZFB6tmVk/getUpdates "HTTP/1.1 200 OK"
