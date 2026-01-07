@@ -11,21 +11,16 @@ if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN env variable not set!")
 
 # =====================
-# Telegram Handlers
+# Handlers
 # =====================
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     text = update.message.text
-    print(f"📩 رسالة من {user.first_name}: {text}")
-
-    # الرد مباشرة
-    reply = f"مرحباً {user.first_name}! تلقيت رسالتك: {text}"
-    await update.message.reply_text(reply)
+    print(f"📩 Message from {user.first_name}: {text}")
+    await update.message.reply_text(f"مرحباً {user.first_name}! تلقيت رسالتك: {text}")
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "📎 لا أستطيع معالجة الصور أو الملفات الآن.\n✍️ أرسل رسالة نصية."
-    )
+    await update.message.reply_text("📎 لا أستطيع معالجة الصور أو الملفات الآن. أرسل رسالة نصية.")
 
 # =====================
 # Telegram App
@@ -35,14 +30,9 @@ telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_
 telegram_app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, handle_media))
 
 # =====================
-# Main
+# Main Polling Loop
 # =====================
-async def main():
-    print("🤖 Telegram Bot Started (Polling)")
-    await telegram_app.initialize()
-    await telegram_app.start()
-    await telegram_app.bot.initialize()
-    await telegram_app.run_polling()
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    print("🤖 Telegram Bot Starting Polling...")
+    # Run polling in blocking mode (هذا أكثر استقراراً على Render)
+    telegram_app.run_polling()
