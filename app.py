@@ -25,7 +25,7 @@ else:
 SQLALCHEMY_DATABASE_URI = f"sqlite:///{db_path}"
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
+app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # =====================
