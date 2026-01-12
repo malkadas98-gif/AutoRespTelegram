@@ -234,6 +234,104 @@ class FlightNLP:
             for word in words:
                 if word in ['من', 'مغادرة']:
                     return 'origin'
+                elif word in ['الى', 'ل', 'وصول', 'الي']:
+                    return 'destination'
+        
+        return 'unknown'
+
+    def extract_dates(self, text):
+        """استخراج جميع صيغ التواريخ المحتملة"""
+        normalized_text = self.normalize_arabic_text(text)
+        dates = []
+        current_year = datetime.now().year
+
+        # الأنماط الرقمية والقياسية
+        pattern1 = r'(\d{4})[-/](\d{1,2})[-/](\d{1,2})'
+        for year, month, day in re.findall(pattern1, text):
+            dates.append({'day': int(day), 'month': int(month), 'year': int(year)})
+
+        pattern2 = r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})'
+        for day, month, year in re.findall(pattern2, normalized_text):
+            dates.append({'day': int(day), 'month': int(month), 'year': int(year)})
+
+        # تواريخ عربية وإنجليزية مع وبدون سنة
+        pattern3 = r'(\d{1,2})\s*(' + '|'.join(self.months.keys()) + r')\s*(\d{4})'
+        for day, month_ar, year in re.findall(pattern3, normalized_text):
+            month_num = self.months.get(month_ar, '01')
+            dates.append({'day': int(day), 'month': int(month_num), 'year': int(year)})
+
+        pattern4 = r'(\d{1,2})\s*(' + '|'.join(self.months.keys()) + r')'
+        for day, month_ar in re.findall(pattern4, normalized_text):
+            month_num = self.months.get(month_ar, '01')
+            dates.append({'day': int(day), 'month': int(month_num), 'year': current_year})
+
+        pattern5 = r'(' + '|'.join(self.english_months + self.english_months_abbr) + r')\s*(\d{1,2}),?\s*(\d{2,4})'
+        for month_en, day, year in re.findall(pattern5, text, re.IGNORECASE):
+            if len(year) == 2:
+                year = f"20{year}"
+            month_num = self.english_months_dict.get(month_en.title(), '01')
+            dates.append({'day': int(day), 'month': int(month_num), 'year': int(year)})
+
+        pattern6 = r'(\d{1,2})\s*(' + '|'.join(self.english_months + self.english_months_abbr) + r'),?\s*(\d{2,4})'
+        for day, month_en, year in re.findall(pattern6, text, re.IGNORECASE):
+            if len(year) == 2:
+                year = f"20{year}"
+            month_num = self.english_months_dict.get(month_en.title(), '01')
+            dates.append({'day': int(day), 'month': int(month_num), 'year': int(year)})
+
+        pattern7 = r'(' + '|'.join(self.english_months + self.english_months_abbr) + r')\s*(\d{1,2})'
+        for month_en, day in re.findall(pattern7, text, re.IGNORECASE):
+            month_num = self.english_months_dict.get(month_en.title(), '01')
+            dates.append({'day': int(day), 'month': int(month_num), 'year': current_year})
+
+        pattern8 = r'(\d{1,2})\s*(' + '|'.join(self.english_months + self.english_months_abbr) + r')'
+        for day, month_en in re.findall(pattern8, text, re.IGNORECASE):
+            month_num = self.english_months_dict.get(month_en.title(), '01')
+            dates.append({'day': int(day), 'month': int(month_num), 'year': current_year})
+
+        # بدون مسافات
+        compact_pattern1 = r'(\d{1,2})(' + '|'.join(self.english_months + self.english_months_abbr) + r')'
+        compact_pattern2 = r'(' + '|'.join(self.english_months + self.english_months_abbr) + r')(\d{1,2})'
+        for day, month_en in re.findall(compact_pattern1, text, re.IGNORECASE):
+            month_num = self.english_months_dict.get(month_en.title(), '01')
+            dates.append({'day': int(day), 'month': int(month_num), 'year': current_year})
+        for month_en, day in re.findall(compact_pattern2, text, re.IGNORECASE):
+            month_num = self.english_months_dict.get(month_en.title(), '01')
+            dates.append({'day': int(day), 'month': int(month_num), 'year': current_year})
+
+        # أنماط عربية خاصة
+        pattern12 = r'(?:يوم|تاريخ|في|موعد)\s*(\d{1,2})\s*(' + '|'.join(self.months.keys()) + r')'
+        for day, month_ar in re.findall(pattern12, normalized_text):
+            month_num = self.months.get(month_ar, '01')
+            dates.append({'day': int(day), 'month': int(month_num), 'year': current_year})
+
+        pattern13 = r'(?:يوم|تاريخ|في|موعد)\s*(\d{1,2})\s*(' + '|'.join(self.months.keys()) + r')\s*(?:سنه|سنة)\s*(\d{4})'
+        for day, month_ar, year in re.findall(pattern13, normalized_text):
+            month_num = self.months.get(month_ar, '01')
+            dates.append({'day': int(day), 'month': int(month_num), 'year': int(year)})
+
+        pattern14 = r'(\d{1,2})\s*(' + '|'.join(self.months.keys()) + r')\s*(\d{2,4})?'
+        for day, month_ar, year in re.findall(pattern14, normalized_text):
+            month_num = self.months.get(month_ar, '01')
+            year_val = int(year) if year else current_year
+            if year_val < 100:
+                year_val += 2000
+            dates.append({'day': int(day), 'month': int(month_num), 'year': year_val})
+
+        # التواريخ النسبية
+        dates.extend(self.extract_relative_dates(normalized_text))
+
+        # إزالة التكرار
+        unique_dates = []
+        for d in dates:
+            if d not in unique_dates:
+                unique_dates.append(d)
+        return unique_dates
+
+    # ⏰ التواريخ النسبية
+    def extract_relative_dates(self, text):
+        text = text.lower().strip()
+        today = datetime.now()
         dates = []
 
         arabic_relative = {
