@@ -3,19 +3,85 @@ from intent_analyzer import IntentAnalyzer
 from nlp_engine import FlightNLP
 from flight_system import flight_system
 
-# إنشاء المحللات مرة واحدة
+# ===========================
+# المحللات
+# ===========================
 intent_analyzer = IntentAnalyzer()
 nlp_engine = FlightNLP()
 
+# ===========================
+# اختصارات المدن
+# ===========================
+CITY_ALIASES = {
+    "Jed": "Jeddah",
+    "Ist": "Istanbul",
+    "Cai": "Cairo",
+    "Riy": "Riyadh",
+    "Dub": "Dubai"
+}
+
+# ===========================
+# دالة لتحويل اسم المدينة
+# ===========================
+def normalize_city(city_name):
+    return CITY_ALIASES.get(city_name.strip(), city_name.strip())
+
+# ===========================
+# دالة لتحويل التواريخ
+# ===========================
+def parse_date(date_str):
+    """
+    يحول تواريخ قصيرة مثل 20Jan أو 20-01-2026 إلى YYYY-MM-DD
+    يدعم العربية والإنجليزية
+    """
+    date_str = date_str.strip()
+    try:
+        # تجربة ISO
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        return dt.strftime("%Y-%m-%d")
+    except:
+        pass
+    try:
+        # تجربة DD-MM-YYYY
+        dt = datetime.strptime(date_str, "%d-%m-%Y")
+        return dt.strftime("%Y-%m-%d")
+    except:
+        pass
+    try:
+        # تجربة English short month, مثل 20Jan
+        dt = datetime.strptime(date_str, "%d%b")
+        # افترض السنة الحالية
+        dt = dt.replace(year=datetime.now().year)
+        return dt.strftime("%Y-%m-%d")
+    except:
+        pass
+    try:
+        # تجربة Arabic: 20 يناير
+        arabic_months = {
+            "يناير":1, "فبراير":2, "مارس":3, "أبريل":4, "مايو":5, "يونيو":6,
+            "يوليو":7, "أغسطس":8, "سبتمبر":9, "أكتوبر":10, "نوفمبر":11, "ديسمبر":12
+        }
+        parts = date_str.split()
+        if len(parts)==2:
+            day = int(parts[0])
+            month = arabic_months.get(parts[1])
+            if month:
+                dt = datetime(datetime.now().year, month, day)
+                return dt.strftime("%Y-%m-%d")
+    except:
+        pass
+    # إذا فشل التحويل
+    return None
+
+# ===========================
+# الدالة الرئيسية
+# ===========================
 async def process_flight_query(user_text, user_id=None):
     """
-    يعالج استعلام المستخدم ويُرجع:
-    - نص واحد
-    - أو قائمة رسائل (نتائج رحلات)
+    يعالج استعلام المستخدم ويُرجع قائمة النتائج
     """
-
     try:
-        # 1️⃣ تحليل النية
+        # ===== تحليل النية =====
         intent_result = intent_analyzer.analyze_intent(user_text)
 
         if intent_result["intent"] in ["gibberish"]:
@@ -26,7 +92,7 @@ async def process_flight_query(user_text, user_id=None):
         ]:
             return intent_result["response"]
 
-        # 2️⃣ تحليل NLP
+        # ===== NLP =====
         nlp_result = nlp_engine.process_query(user_text)
 
         if not nlp_result.get("success"):
@@ -42,7 +108,16 @@ async def process_flight_query(user_text, user_id=None):
 
         query = nlp_result["query"]
 
-        # 3️⃣ البحث عن الرحلات
+        # ===== تصحيح المدن والتاريخ =====
+        query["origin"] = normalize_city(query["origin"])
+        query["destination"] = normalize_city(query["destination"])
+        date_parsed = parse_date(query["date"])
+        if date_parsed:
+            query["date"] = date_parsed
+        else:
+            return "❌ لم أتمكن من فهم تاريخ الرحلة"
+
+        # ===== البحث عن الرحلات =====
         search_result = flight_system.search_flights_safe(
             query["origin"],
             query["destination"],
@@ -55,7 +130,7 @@ async def process_flight_query(user_text, user_id=None):
         if formatted.get("count", 0) == 0:
             return "❌ لم يتم العثور على رحلات متاحة في هذا التاريخ"
 
-        # 4️⃣ بناء الرد (عدة نتائج)
+        # ===== بناء الرد (أفضل 5 رحلات) =====
         messages = []
 
         header = (
