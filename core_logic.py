@@ -2,163 +2,92 @@ from datetime import datetime
 from intent_analyzer import IntentAnalyzer
 from nlp_engine import FlightNLP
 from flight_system import flight_system
-
+from flask import Flask, app, request, jsonify, render_template, redirect, url_for, flash
 # ===========================
 # المحللات
 # ===========================
 intent_analyzer = IntentAnalyzer()
 nlp_engine = FlightNLP()
 
-# ===========================
-# اختصارات المدن
-# ===========================
-CITY_ALIASES = {
-    "Jed": "Jeddah",
-    "Ist": "Istanbul",
-    "Cai": "Cairo",
-    "Riy": "Riyadh",
-    "Dub": "Dubai"
-}
-
-# ===========================
-# دالة لتحويل اسم المدينة
-# ===========================
-def normalize_city(city_name):
-    return CITY_ALIASES.get(city_name.strip(), city_name.strip())
-
-# ===========================
-# دالة لتحويل التواريخ
-# ===========================
-def parse_date(date_str):
-    """
-    يحول تواريخ قصيرة مثل 20Jan أو 20-01-2026 إلى YYYY-MM-DD
-    يدعم العربية والإنجليزية
-    """
-    date_str = date_str.strip()
-    try:
-        # تجربة ISO
-        dt = datetime.strptime(date_str, "%Y-%m-%d")
-        return dt.strftime("%Y-%m-%d")
-    except:
-        pass
-    try:
-        # تجربة DD-MM-YYYY
-        dt = datetime.strptime(date_str, "%d-%m-%Y")
-        return dt.strftime("%Y-%m-%d")
-    except:
-        pass
-    try:
-        # تجربة English short month, مثل 20Jan
-        dt = datetime.strptime(date_str, "%d%b")
-        # افترض السنة الحالية
-        dt = dt.replace(year=datetime.now().year)
-        return dt.strftime("%Y-%m-%d")
-    except:
-        pass
-    try:
-        # تجربة Arabic: 20 يناير
-        arabic_months = {
-            "يناير":1, "فبراير":2, "مارس":3, "أبريل":4, "مايو":5, "يونيو":6,
-            "يوليو":7, "أغسطس":8, "سبتمبر":9, "أكتوبر":10, "نوفمبر":11, "ديسمبر":12
-        }
-        parts = date_str.split()
-        if len(parts)==2:
-            day = int(parts[0])
-            month = arabic_months.get(parts[1])
-            if month:
-                dt = datetime(datetime.now().year, month, day)
-                return dt.strftime("%Y-%m-%d")
-    except:
-        pass
-    # إذا فشل التحويل
-    return None
 
 # ===========================
 # الدالة الرئيسية
 # ===========================
 async def process_flight_query(user_text, user_id=None):
-    """
-    يعالج استعلام المستخدم ويُرجع قائمة النتائج
-    """
+    """معالجة استعلام رحلة طيران وإرجاع الرد المناسب"""
     try:
-        # ===== تحليل النية =====
+        start_time = datetime.now()
+        
+        # 1. تحليل النية أولاً
         intent_result = intent_analyzer.analyze_intent(user_text)
-
-        if intent_result["intent"] in ["gibberish"]:
-            return intent_result["response"]
-
-        if intent_result["intent"] in [
-            "greeting", "thanks", "general_question", "help", "unclear"
-        ]:
-            return intent_result["response"]
-
-        # ===== NLP =====
+        
+        # 2. إذا كانت نية غير مفهومة تماماً - رد مباشر
+        if intent_result['intent'] in ['gibberish']:
+            return intent_result['response']
+        
+        # 3. إذا كانت نية مباشرة (تحية، شكر، إلخ) - رد مباشر بدون Amadeus
+        if intent_result['intent'] in ['greeting', 'thanks', 'general_question', 'help', 'unclear']:
+            return intent_result['response']
+        
+        # 4. إذا كانت نية بحث عن رحلة أو نص مقبول، استخدم NLP
         nlp_result = nlp_engine.process_query(user_text)
-
-        if not nlp_result.get("success"):
-            missing = nlp_result.get("missing_info", [])
-            if missing:
-                return (
-                    "✈️ أحتاج معلومات إضافية:\n"
-                    f"📋 {', '.join(missing)}\n\n"
-                    "مثال:\n"
-                    "رحلة من الرياض إلى دبي يوم 20 يناير لشخصين"
+        
+        # 5. تحديد ما إذا كان يجب استخدام Amadeus
+        should_call_amadeus = intent_analyzer.should_use_amadeus(intent_result, nlp_result)
+        
+        # 6. استدعاء Amadeus فقط إذا لزم الأمر
+        if should_call_amadeus and nlp_result.get('success'):
+            query = nlp_result['query']
+            
+            # استخدام النظام الجديد للبحث عن الرحلات داخل سياق التطبيق
+            with app.app_context():
+                # استخدام الدالة المعدلة من flight_system
+                search_result = flight_system.search_flights_safe(
+                    query['origin'],
+                    query['destination'], 
+                    query['date'],
+                    query['adults']
                 )
-            return "❌ لم أستطع فهم تفاصيل الرحلة"
-
-        query = nlp_result["query"]
-
-        # ===== تصحيح المدن والتاريخ =====
-        query["origin"] = normalize_city(query["origin"])
-        query["destination"] = normalize_city(query["destination"])
-        date_parsed = parse_date(query["date"])
-        if date_parsed:
-            query["date"] = date_parsed
-        else:
-            return "❌ لم أتمكن من فهم تاريخ الرحلة"
-
-        # ===== البحث عن الرحلات =====
-        search_result = flight_system.search_flights_safe(
-            query["origin"],
-            query["destination"],
-            query["date"],
-            query["adults"]
-        )
-
-        formatted = flight_system.format_flight_results(search_result)
-
-        if formatted.get("count", 0) == 0:
-            return "❌ لم يتم العثور على رحلات متاحة في هذا التاريخ"
-
-        # ===== بناء الرد (أفضل 5 رحلات) =====
-        messages = []
-
-        header = (
-            f"✈️ **نتائج الرحلات**\n\n"
-            f"📍 من: {query['origin']}\n"
-            f"📍 إلى: {query['destination']}\n"
-            f"📅 التاريخ: {query['date']}\n"
-            f"👤 الركاب: {query['adults']}\n\n"
-            f"🔍 عدد الرحلات: {formatted['count']}\n"
-            "----------------------"
-        )
-        messages.append(header)
-
-        for idx, flight in enumerate(formatted["flights"][:5], start=1):
-            msg = (
-                f"✈️ **رحلة {idx}**\n"
-                f"🏢 شركة الطيران: {flight['airline']}\n"
-                f"🕒 الإقلاع: {flight['departure_time']}\n"
-                f"🕓 الوصول: {flight['arrival_time']}\n"
-                f"⏱️ المدة: {flight['duration']}\n"
-                f"💺 التوقفات: {flight['stops']}\n"
-                f"💰 السعر: {flight['price']} {flight['currency']}\n"
-                "----------------------"
-            )
-            messages.append(msg)
-
-        return messages
-
+                
+                # استخدام الدالة المعدلة للتنسيق
+                formatted_results = flight_system.format_flight_results(search_result)
+                
+                # استخدام الدالة المعدلة للحصول على الرد
+                response = flight_system.get_cheapest_flight_response(query, formatted_results)
+                
+                # تسجيل البحث في التاريخ
+                if user_id:
+                    flights_found = formatted_results.get('count', 0)
+                    # log_search_history(user_id, user_text, nlp_result, True, flights_found)
+                
+                return response
+        
+        # 7. إذا فشل NLP ولكن النية كانت مقبولة
+        elif not nlp_result.get('success') and intent_result['intent'] in ['flight_search', 'unknown_but_acceptable']:
+            missing_info = nlp_result.get('missing_info', [])
+            if missing_info:
+                response = (
+                    "✈️ أرى أنك تبحث عن رحلة طيران!\n\n"
+                    "لكنني أحتاج بعض المعلومات الإضافية:\n"
+                    f"📋 {', '.join(missing_info)}\n\n"
+                    "💡 **مثال:**\n"
+                    "\"رحلة من الرياض إلى دبي يوم 15 ديسمبر لشخصين\""
+                )
+            else:
+                response = (
+                    "🤔 لم أستطع فهم تفاصيل رحلتك بشكل كامل.\n\n"
+                    "💡 **جرب صيغة مثل:**\n"
+                    "\"رحلة من [مدينتك] إلى [الوجهة] في [التاريخ]\"\n\n"
+                    "**أمثلة:**\n"
+                    "• رحلة من جدة إلى اسطنبول 20 يناير\n"
+                    "• أريد السفر من الرياض إلى دبي غدا\n"
+                    "• ابحث عن تذاكر من الدمام إلى القاهرة"
+                )
+            return response
+        
+        # 8. الرد الافتراضي
+        return "🤖 أنا مساعدك للبحث عن رحلات الطيران. كيف يمكنني مساعدتك؟\n\n💡 **جرب أن تسألني عن:**\n• رحلات من مدينتك إلى وجهة أحلامك\n• أسعار تذاكر الطيران\n• توفر الرحلات في تاريخ محدد"
+    
     except Exception as e:
-        print(f"❌ Core Logic Error: {e}")
-        return "❌ حدث خطأ أثناء البحث عن الرحلات"
+        print(f"Error processing flight query: {e}")
+        return "❌ حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى."
