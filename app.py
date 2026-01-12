@@ -7,9 +7,8 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
-from models import db, SearchHistory, SystemSettings, APIUsage, init_db, add_initial_data
+
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
 
 load_dotenv()
 from core_logic import process_flight_query  # منطق فقط، بدون Flask
@@ -22,22 +21,6 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
-
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-key-123')
-
-
-basedir = os.path.abspath(os.path.dirname(__file__))
-
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
-    'DATABASE_URL',
-    'sqlite:///' + os.path.join(basedir, 'flight_bot.db')
-)
-
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# تهيئة قاعدة البيانات أولاً
-init_db(app)
 
 
 # =============================
