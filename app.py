@@ -1,5 +1,6 @@
 # app.py
 import os
+import sys
 import logging
 import requests
 import asyncio
@@ -17,8 +18,9 @@ from intent_analyzer import IntentAnalyzer
 
 # ================== Logging ==================
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
+    stream=sys.stdout,       # ✅ مهم لجعل كل Logs تظهر في Render
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -64,7 +66,10 @@ def send_whatsapp_message(to, text):
         "text": {"body": text}
     }
     r = requests.post(url, headers=headers, json=payload)
-    logger.info(f"📤 WhatsApp sent: {r.status_code}")
+    logger.info(f"📤 WhatsApp sent to {to}, status: {r.status_code}")
+    # ✅ Print إضافي لضمان الظهور في Render Logs
+    print(f"📤 WhatsApp sent to {to}, status: {r.status_code}")
+    sys.stdout.flush()
 
 # ================== Search History ==================
 def log_search_history(user_id, query_text, nlp_result, success, flights_found=0):
@@ -89,6 +94,8 @@ def log_search_history(user_id, query_text, nlp_result, success, flights_found=0
             db.session.commit()
     except Exception as e:
         logger.error(f"History error: {e}")
+        print(f"❌ History error: {e}")
+        sys.stdout.flush()
 
 # ================== Core Logic (UNCHANGED) ==================
 async def process_flight_query(user_text, user_id=None):
@@ -140,6 +147,8 @@ async def process_flight_query(user_text, user_id=None):
 
     except Exception as e:
         logger.error(f"Processing error: {e}")
+        print(f"❌ Processing error: {e}")
+        sys.stdout.flush()
         return "❌ حدث خطأ، حاول مرة أخرى."
 
 # ================== Webhook Verify ==================
@@ -154,6 +163,8 @@ def verify_webhook():
 def whatsapp_webhook():
     data = request.json
     logger.info(f"📩 Incoming: {data}")
+    print(f"📩 Incoming: {data}")   # ✅ Print إضافي
+    sys.stdout.flush()
 
     try:
         value = data["entry"][0]["changes"][0]["value"]
@@ -164,6 +175,7 @@ def whatsapp_webhook():
         user_text = message["text"]["body"]
         user_id = message["from"]
 
+        # تشغيل منطق البوت
         reply = asyncio.run(process_flight_query(user_text, user_id))
 
         if isinstance(reply, list):
@@ -174,6 +186,8 @@ def whatsapp_webhook():
 
     except Exception as e:
         logger.error(f"Webhook error: {e}")
+        print(f"❌ Webhook error: {e}")
+        sys.stdout.flush()
 
     return "OK", 200
 
@@ -187,8 +201,12 @@ if __name__ == "__main__":
         try:
             flight_system.get_amadeus_token()
             logger.info("✅ Amadeus connected")
+            print("✅ Amadeus connected")
+            sys.stdout.flush()
         except Exception as e:
             logger.warning(f"⚠️ Amadeus not available: {e}")
+            print(f"⚠️ Amadeus not available: {e}")
+            sys.stdout.flush()
 
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
