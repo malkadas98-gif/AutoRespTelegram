@@ -2,6 +2,7 @@ import os
 import logging
 import requests
 import asyncio
+import time
 import json
 from flask import Flask, request, jsonify
 from datetime import datetime
@@ -403,7 +404,7 @@ def whatsapp_webhook():
                                 for msg in response:
                                     send_whatsapp_message(user_id, msg)
                                     # تأخير بسيط بين الرسائل
-                                    asyncio.sleep(0.5)
+                                    time.sleep(0.5)
                             else:
                                 send_whatsapp_message(user_id, response)
                 
