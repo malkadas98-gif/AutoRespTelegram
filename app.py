@@ -1,5 +1,4 @@
 import os
-import sys
 import logging
 import requests
 import asyncio
@@ -18,9 +17,8 @@ from intent_analyzer import IntentAnalyzer
 
 # ================== Logging ==================
 logging.basicConfig(
-    stream=sys.stdout,
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
@@ -41,104 +39,163 @@ init_db(app)
 nlp_engine = FlightNLP()
 intent_analyzer = IntentAnalyzer()
 
-# ================== WhatsApp Business API Configuration ==================
-WHATSAPP_API_URL = "https://graph.facebook.com/v18.0"  # أحدث إصدار
-WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN")  # Access Token من Facebook Developer
-WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")  # Phone Number ID
-WHATSAPP_BUSINESS_ACCOUNT_ID = os.getenv("WHATSAPP_BUSINESS_ACCOUNT_ID")  # Business Account ID
-WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "flight-bot-verify")  # للتحقق من Webhook
+# ================== WhatsApp Config ==================
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
+PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
+WHATSAPP_API_URL = f"https://graph.facebook.com/v22.0/{PHONE_NUMBER_ID}/messages"
 
-# ================== WhatsApp API Functions ==================
-def send_whatsapp_message(to_number, message_text, message_type="text"):
-    """
-    إرسال رسالة واتساب باستخدام WhatsApp Business API مباشرة
-    """
-    if not WHATSAPP_ACCESS_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
-        logger.error("❌ WhatsApp credentials missing")
-        return None
-    
-    try:
-        url = f"{WHATSAPP_API_URL}/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+# ================== WhatsApp Message Templates ==================
+class WhatsAppTemplates:
+    @staticmethod
+    def welcome_message():
+        return """🛫 *مرحباً بك في نظام حجز الطيران الذكي*
+
+أنا مساعدك الذكي للبحث عن الرحلات الجوية. يمكنني مساعدتك في:
+
+✈️ *البحث عن الرحلات*
+🔍 *مقارنة الأسعار*
+📅 *البحث حسب التاريخ*
+🏙️ *البحث حسب المدينة*
+
+*📝 مثال للبحث:*
+• رحلة من الرياض إلى دبي يوم 15 ديسمبر لشخصين
+• أريد السفر من جدة إلى القاهرة غداً
+• ابحث عن رحلات من الدمام إلى البحرين 2025-01-20
+
+*💡 تذكر:* اذكر دائماً:
+1. مدينة المغادرة
+2. مدينة الوصول
+3. تاريخ السفر
+4. عدد المسافرين
+
+كيف يمكنني مساعدتك اليوم؟"""
+
+    @staticmethod
+    def flight_results_summary(query, flights_count, lowest_price):
+        return f"""✅ *تم العثور على {flights_count} رحلة*
+
+*تفاصيل البحث:*
+📍 المغادرة: {query.get('origin', 'غير محدد')}
+🎯 الوصول: {query.get('destination', 'غير محدد')}
+📅 التاريخ: {query.get('date', 'غير محدد')}
+👥 المسافرون: {query.get('adults', 1)} شخص
+
+💰 *أقل سعر متوفر:* {lowest_price} ريال
+
+سأرسل لك الآن أفضل 3 رحلات..."""
+
+    @staticmethod
+    def single_flight_details(flight, index):
+        return f"""*الرحلة {index + 1}*
+
+✈️ *الخطوط:* {flight.get('airline', 'غير محدد')}
+🛫 *المغادرة:* {flight.get('departure_time', 'غير محدد')}
+🛬 *الوصول:* {flight.get('arrival_time', 'غير محدد')}
+⏱️ *المدة:* {flight.get('duration', 'غير محدد')}
+💰 *السعر:* {flight.get('price', 'غير محدد')} ريال
+🔢 *رقم الرحلة:* {flight.get('flight_number', 'غير محدد')}"""
+
+    @staticmethod
+    def missing_info_message(missing_fields):
+        fields_arabic = {
+            'origin': 'مدينة المغادرة',
+            'destination': 'مدينة الوصول',
+            'date': 'تاريخ السفر',
+            'adults': 'عدد المسافرين'
+        }
         
+        missing_list = [fields_arabic.get(field, field) for field in missing_fields]
+        
+        return f"""✈️ *أحتاج بعض المعلومات الإضافية*
+
+📋 *المعلومات الناقصة:*
+{chr(10).join([f'• {item}' for item in missing_list])}
+
+*📝 مثال:*
+"رحلة من {missing_fields[0] if 'origin' in missing_fields else 'الرياض'} إلى {missing_fields[1] if 'destination' in missing_fields else 'دبي'} يوم 15 ديسمبر لشخصين"
+
+يرجى إرسال المعلومات المطلوبة."""
+
+    @staticmethod
+    def no_flights_found(query):
+        return f"""❌ *لم أجد رحلات متاحة*
+
+*بحثت عن:*
+📍 {query.get('origin', 'غير محدد')} → 🎯 {query.get('destination', 'غير محدد')}
+📅 {query.get('date', 'غير محدد')}
+👥 {query.get('adults', 1)} شخص
+
+*💡 اقتراحات:*
+• حاول تغيير تاريخ السفر
+• تحقق من أسماء المدنين
+• جرب البحث عن رحلات في يوم آخر
+
+هل ترغب في البحث بتواريخ أخرى؟"""
+
+# ================== WhatsApp Send Functions ==================
+def send_whatsapp_message(to, text):
+    """إرسال رسالة نصية عادية"""
+    try:
         headers = {
-            "Authorization": f"Bearer {WHATSAPP_ACCESS_TOKEN}",
+            "Authorization": f"Bearer {WHATSAPP_TOKEN}",
             "Content-Type": "application/json"
         }
         
-        # بناء payload الرسالة
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
-            "to": to_number,
-            "type": message_type
+            "to": to,
+            "type": "text",
+            "text": {
+                "body": text,
+                "preview_url": False
+            }
         }
         
-        if message_type == "text":
-            payload["text"] = {"body": message_text}
-        elif message_type == "template":
-            # لرسائل القوالب (مطلوب موافقة من Meta)
-            payload["template"] = message_text
-        
-        logger.info(f"📤 Sending WhatsApp to {to_number}: {message_text[:50]}...")
-        
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response = requests.post(WHATSAPP_API_URL, headers=headers, json=payload)
         
         if response.status_code == 200:
-            result = response.json()
-            message_id = result.get("messages", [{}])[0].get("id")
-            logger.info(f"✅ WhatsApp sent successfully! Message ID: {message_id}")
-            
-            # تسجيل الاستخدام في قاعدة البيانات
-            log_api_usage("whatsapp_send", url, payload, result, True)
-            
-            return message_id
+            logger.info(f"✅ WhatsApp message sent to {to}")
+            return True
         else:
-            error_msg = f"Failed to send WhatsApp: {response.status_code} - {response.text}"
-            logger.error(f"❌ {error_msg}")
+            logger.error(f"❌ Failed to send WhatsApp message: {response.status_code} - {response.text}")
+            return False
             
-            # تسجيل الخطأ
-            log_api_usage("whatsapp_send", url, payload, 
-                         {"error": error_msg, "status_code": response.status_code}, False)
-            
-            # محاولة إرسال رسالة خطأ للمستخدم
-            send_error_message(to_number)
-            return None
-            
-    except requests.exceptions.RequestException as e:
-        logger.error(f"❌ Network error sending WhatsApp: {e}")
-        return None
     except Exception as e:
-        logger.error(f"❌ Unexpected error sending WhatsApp: {e}", exc_info=True)
-        return None
+        logger.error(f"❌ Error sending WhatsApp message: {str(e)}")
+        return False
 
-def send_error_message(to_number):
-    """
-    إرسال رسالة خطأ بديلة عند فشل الإرسال
-    """
+def send_whatsapp_template(to, template_name, language_code="ar", components=None):
+    """إرسال قالب رسالة"""
     try:
-        error_text = "⚠️ عذراً، حدث خطأ في النظام. يرجى المحاولة مرة أخرى لاحقاً."
-        send_whatsapp_message(to_number, error_text)
+        headers = {
+            "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": to,
+            "type": "template",
+            "template": {
+                "name": template_name,
+                "language": {
+                    "code": language_code
+                }
+            }
+        }
+        
+        if components:
+            payload["template"]["components"] = components
+        
+        response = requests.post(WHATSAPP_API_URL, headers=headers, json=payload)
+        return response.json()
+        
     except Exception as e:
-        logger.error(f"Failed to send error message: {e}")
-
-def log_api_usage(api_name, endpoint, request_data, response_data, success):
-    """
-    تسجيل استخدام API في قاعدة البيانات
-    """
-    try:
-        with app.app_context():
-            usage = APIUsage(
-                api_name=api_name,
-                endpoint=endpoint,
-                request_data=json.dumps(request_data, ensure_ascii=False),
-                response_data=json.dumps(response_data, ensure_ascii=False),
-                success=success
-            )
-            db.session.add(usage)
-            db.session.commit()
-            logger.debug(f"📊 API usage logged for {api_name}")
-    except Exception as e:
-        logger.error(f"Failed to log API usage: {e}")
+        logger.error(f"❌ Error sending template: {str(e)}")
+        return None
 
 # ================== Database Setup ==================
 def setup_database():
@@ -152,11 +209,10 @@ def log_search_history(user_id, query_text, nlp_result, success, flights_found=0
     try:
         with app.app_context():
             search = SearchHistory(
-                user_id=f"whatsapp:{user_id}",
+                user_id=user_id,
                 query_text=query_text,
                 success=success,
-                flights_found=flights_found,
-                platform="whatsapp_business_api"
+                flights_found=flights_found
             )
 
             if nlp_result.get("query"):
@@ -169,39 +225,35 @@ def log_search_history(user_id, query_text, nlp_result, success, flights_found=0
             search.set_nlp_result(nlp_result)
             db.session.add(search)
             db.session.commit()
-            logger.info(f"📝 Search history logged for user {user_id}")
+            logger.info(f"📊 Search logged for user {user_id}")
     except Exception as e:
-        logger.error(f"History error: {e}")
+        logger.error(f"❌ History error: {e}")
 
-# ================== Core Logic ==================
-async def process_flight_query(user_text, user_id=None):
-    """
-    معالجة استعلام المستخدم وإرجاع الرد المناسب
-    """
+# ================== Core Processing ==================
+async def process_flight_query(user_text, user_id=None, whatsapp_number=None):
+    """معالجة استعلام المستخدم وإرجاع الرد المناسب"""
     try:
         logger.info(f"🔍 Processing query from {user_id}: {user_text}")
         
         # تحليل النية
         intent = intent_analyzer.analyze_intent(user_text)
-        logger.info(f"🎯 Intent: {intent['intent']}")
-
-        # ردود سريعة للنيّات البسيطة
-        simple_intents = ["gibberish", "greeting", "thanks", "general_question", "help", "unclear"]
-        if intent["intent"] in simple_intents:
-            logger.info(f"📨 Returning simple response for {intent['intent']}")
-            return intent["response"]
-
-        # معالجة الاستعلام بالـ NLP
-        nlp_result = nlp_engine.process_query(user_text)
-        logger.info(f"🤖 NLP success: {nlp_result.get('success', False)}")
+        logger.info(f"🎯 Intent detected: {intent['intent']}")
         
-        # تحديد إذا كان يجب البحث في Amadeus
+        # معالجة الردود التلقائية
+        if intent["intent"] in ["gibberish", "greeting", "thanks", "general_question", "help", "unclear"]:
+            if intent["intent"] == "greeting":
+                return WhatsAppTemplates.welcome_message()
+            return intent["response"]
+        
+        # معالجة استعلامات الرحلات
+        nlp_result = nlp_engine.process_query(user_text)
+        logger.info(f"🤖 NLP Result: {nlp_result}")
+        
         should_call = intent_analyzer.should_use_amadeus(intent, nlp_result)
         
         if should_call and nlp_result.get("success"):
             query = nlp_result["query"]
-            logger.info(f"✈️ Flight search: {query}")
-
+            
             with app.app_context():
                 # البحث عن الرحلات
                 search_result = flight_system.search_flights_safe(
@@ -211,80 +263,116 @@ async def process_flight_query(user_text, user_id=None):
                     query["adults"]
                 )
                 
-                flight_count = len(search_result.get('data', [])) if search_result.get('data') else 0
-                logger.info(f"🔍 Found {flight_count} flights")
-
-                if flight_count > 0:
-                    formatted = flight_system.format_flight_results(search_result)
-                    response = flight_system.get_flight_response_messages(query, formatted)
-                    
-                    # تسجيل البحث الناجح
-                    if user_id:
-                        log_search_history(user_id, user_text, nlp_result, True, flight_count)
-                    
-                    return response
-                else:
-                    # لا توجد رحلات
-                    no_flights_msg = f"⚠️ لم أجد رحلات من {query['origin']} إلى {query['destination']} في {query['date']}"
-                    return no_flights_msg
-
-        # إذا كانت المعلومات ناقصة
+                # تنسيق النتائج
+                formatted = flight_system.format_flight_results(search_result)
+                
+                # تسجيل البحث
+                if user_id:
+                    log_search_history(
+                        user_id,
+                        user_text,
+                        nlp_result,
+                        True,
+                        formatted.get("count", 0)
+                    )
+                
+                # إعداد الردود للواتساب
+                return prepare_whatsapp_response(query, formatted, nlp_result)
+        
+        # إذا كان هناك معلومات ناقصة
         if not nlp_result.get("success"):
             missing = nlp_result.get("missing_info", [])
             if missing:
-                missing_msg = (
-                    "✈️ أحتاج بعض المعلومات للبحث:\n"
-                    f"📋 {', '.join(missing)}\n\n"
-                    "📌 مثال للبحث:\n"
-                    "رحلة من الرياض إلى دبي يوم 15 ديسمبر لشخصين\n"
-                    "أو\n"
-                    "ابحث عن تذاكر من جدة إلى القاهرة يوم 20 يناير لـ 3 أشخاص"
-                )
-                return missing_msg
-
+                return WhatsAppTemplates.missing_info_message(missing)
+        
         # رد افتراضي
-        return "🤖 كيف أستطيع مساعدتك في البحث عن رحلة؟\n\nمثال: 'ابحث عن رحلة من دبي إلى لندن لشخص واحد يوم 10 فبراير'"
-
+        return "🤖 كيف أستطيع مساعدتك في البحث عن رحلة؟"
+        
     except Exception as e:
-        logger.error(f"❌ Processing error: {e}", exc_info=True)
-        return "❌ عذراً، حدث خطأ في النظام. يرجى المحاولة مرة أخرى."
+        logger.error(f"❌ Processing error: {e}")
+        return "❌ عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى."
 
-# ================== Webhook Verification ==================
+def prepare_whatsapp_response(query, flight_results, nlp_result):
+    """إعداد الردود المناسبة للواتساب"""
+    responses = []
+    
+    if flight_results.get("count", 0) > 0:
+        # ملخص النتائج
+        summary = WhatsAppTemplates.flight_results_summary(
+            query, 
+            flight_results["count"],
+            flight_results.get("lowest_price", "غير متوفر")
+        )
+        responses.append(summary)
+        
+        # أفضل 3 رحلات
+        flights = flight_results.get("flights", [])[:3]
+        for i, flight in enumerate(flights):
+            flight_detail = WhatsAppTemplates.single_flight_details(flight, i)
+            responses.append(flight_detail)
+        
+        # رسالة ختامية
+        responses.append("""📌 *للحجز أو لمزيد من المعلومات:*
+• تفضل بزيارة موقعنا الإلكتروني
+• أو اتصل بخدمة العملاء
+
+هل ترغب في البحث عن رحلات أخرى؟""")
+        
+    else:
+        # لا توجد رحلات
+        responses.append(WhatsAppTemplates.no_flights_found(query))
+    
+    return responses
+
+@app.route("/test-verify", methods=["GET"])
+def test_verify():
+    """اختبار التحقق يدوياً"""
+    token = request.args.get("token")
+    
+    if token == VERIFY_TOKEN:
+        return jsonify({
+            "status": "success",
+            "message": "Token matches!",
+            "your_token": VERIFY_TOKEN[:5] + "..." if VERIFY_TOKEN else None,
+            "received_token": token
+        })
+    else:
+        return jsonify({
+            "status": "failed",
+            "message": "Token mismatch!",
+            "your_token": VERIFY_TOKEN,
+            "received_token": token
+        })
+    
+# ================== Webhook Verify ==================
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
-    """
-    التحقق من Webhook مع Meta (مطلوب في إعدادات التطبيق)
-    """
+    """التحقق من صحة webhook"""
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
     
-    logger.info(f"🔐 Webhook verification attempt: mode={mode}, token={token}")
+    logger.info(f"🔍 Webhook verification attempt: mode={mode}, token={token}")
     
-    if mode == "subscribe" and token == WHATSAPP_VERIFY_TOKEN:
-        logger.info("✅ Webhook verified successfully!")
-        return challenge, 200
+    if mode and token:
+        if mode == "subscribe" and token == VERIFY_TOKEN:
+            logger.info("✅ Webhook verified successfully!")
+            return challenge, 200
+        else:
+            logger.error("❌ Verification failed: Invalid token")
+            return "Forbidden", 403
     
-    logger.warning("❌ Webhook verification failed")
-    return "Forbidden", 403
+    return "Bad Request", 400
 
-# ================== Webhook Handler ==================
+# ================== Webhook Receive ==================
 @app.route("/webhook", methods=["POST"])
-def handle_webhook():
-    """
-    معالجة رسائل الواتساب الواردة من Meta
-    """
+def whatsapp_webhook():
+    """استقبال رسائل الواتساب"""
     try:
         data = request.get_json()
-        logger.info(f"📩 Incoming webhook: {json.dumps(data, ensure_ascii=False)[:500]}...")
+        logger.info(f"📩 Incoming webhook data")
         
-        if not data:
-            logger.warning("⚠️ Empty webhook data")
-            return jsonify({"status": "no data"}), 200
-        
-        # التحقق من أن الرسالة من واتساب
         if data.get("object") != "whatsapp_business_account":
-            logger.warning("⚠️ Not a WhatsApp business account webhook")
             return jsonify({"status": "ignored"}), 200
         
         entries = data.get("entry", [])
@@ -295,120 +383,235 @@ def handle_webhook():
             for change in changes:
                 value = change.get("value", {})
                 
-                # معالجة الرسائل
-                messages = value.get("messages", [])
-                
-                for message in messages:
-                    # استخراج معلومات الرسالة
-                    from_number = message.get("from", "")
-                    message_type = message.get("type", "")
-                    message_id = message.get("id", "")
+                # معالجة الرسائل الواردة
+                if "messages" in value:
+                    messages = value.get("messages", [])
                     
-                    logger.info(f"📱 Message from {from_number}, type: {message_type}, id: {message_id}")
-                    
-                    # معالجة الرسائل النصية فقط حالياً
-                    if message_type == "text":
-                        message_text = message.get("text", {}).get("body", "")
-                        
-                        if message_text:
-                            logger.info(f"📝 Text message: {message_text}")
+                    for message in messages:
+                        if message.get("type") == "text":
+                            user_text = message["text"]["body"]
+                            user_id = message["from"]
+                            message_id = message["id"]
                             
-                            # معالجة الرسالة بشكل غير متزامن
-                            reply = asyncio.run(process_flight_query(message_text, from_number))
+                            logger.info(f"👤 Message from {user_id}: {user_text}")
+                            
+                            # معالجة الرسالة
+                            response = asyncio.run(process_flight_query(user_text, user_id))
                             
                             # إرسال الرد
-                            if isinstance(reply, list):
-                                for msg in reply:
-                                    send_whatsapp_message(from_number, msg)
-                                    asyncio.sleep(0.5)  # تأخير بين الرسائل
+                            if isinstance(response, list):
+                                for msg in response:
+                                    send_whatsapp_message(user_id, msg)
+                                    # تأخير بسيط بين الرسائل
+                                    asyncio.sleep(0.5)
                             else:
-                                send_whatsapp_message(from_number, reply)
-                    
-                    # يمكن إضافة معالجة لأنواع أخرى من الرسائل هنا
-                    elif message_type == "interactive":
-                        logger.info("🔄 Interactive message received")
-                        # معالجة الرسائل التفاعلية (أزرار، قوائم)
-                    
-                    else:
-                        logger.info(f"ℹ️ Unhandled message type: {message_type}")
+                                send_whatsapp_message(user_id, response)
                 
-                # معالجة حالة التسليم والقراءة (اختياري)
-                statuses = value.get("statuses", [])
-                for status in statuses:
-                    status_info = f"📊 Message {status.get('id', 'unknown')} status: {status.get('status', 'unknown')}"
-                    logger.info(status_info)
+                # معالجة حالة الرسالة
+                elif "statuses" in value:
+                    statuses = value.get("statuses", [])
+                    for status in statuses:
+                        logger.info(f"📊 Message status: {status.get('status')} for {status.get('recipient_id')}")
         
-        return jsonify({"status": "processed"}), 200
+        return jsonify({"status": "success"}), 200
         
     except Exception as e:
-        logger.error(f"❌ Webhook processing error: {e}", exc_info=True)
+        logger.error(f"❌ Webhook error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# ================== Health Check ==================
-@app.route("/", methods=["GET"])
-@app.route("/health", methods=["GET"])
-def health_check():
-    """
-    نقطة فحص صحة الخدمة
-    """
-    whatsapp_status = "configured" if WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID else "not_configured"
-    
-    return jsonify({
-        "status": "online",
-        "service": "Flight Bot - WhatsApp Business API",
-        "whatsapp": whatsapp_status,
-        "timestamp": datetime.now().isoformat()
-    }), 200
-
-# ================== Test Endpoint ==================
-@app.route("/test-message", methods=["POST"])
-def test_message():
-    """
-    نقطة لاختبار إرسال رسالة (للاستخدام الداخلي فقط)
-    """
+# ================== Test Endpoints ==================
+@app.route("/send-test", methods=["GET"])
+def send_test_message():
+    """نقطة نهاية لاختبار إرسال رسالة"""
     try:
-        data = request.get_json()
-        to_number = data.get("to")
-        message = data.get("message", "Test message from Flight Bot")
+        test_number = request.args.get("to")
+        test_message = request.args.get("message", "Test message from flight bot")
         
-        if not to_number:
-            return jsonify({"error": "Missing 'to' number"}), 400
+        if not test_number:
+            return jsonify({"error": "Missing 'to' parameter"}), 400
         
-        result = send_whatsapp_message(to_number, message)
+        success = send_whatsapp_message(test_number, test_message)
         
-        if result:
-            return jsonify({"success": True, "message_id": result}), 200
+        if success:
+            return jsonify({
+                "status": "success",
+                "message": "Test message sent"
+            }), 200
         else:
-            return jsonify({"success": False, "error": "Failed to send"}), 500
+            return jsonify({
+                "status": "error",
+                "message": "Failed to send message"
+            }), 500
             
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/check-config", methods=["GET"])
+def check_config():
+    """التحقق من إعدادات النظام"""
+    return jsonify({
+        "whatsapp_configured": bool(WHATSAPP_TOKEN and PHONE_NUMBER_ID),
+        "database_configured": bool(app.config["SQLALCHEMY_DATABASE_URI"]),
+        "whatsapp_token_length": len(WHATSAPP_TOKEN) if WHATSAPP_TOKEN else 0,
+        "phone_number_id": PHONE_NUMBER_ID
+    })
+
+
+# ================== Debug Endpoint ==================
+@app.route("/debug/message", methods=["POST"])
+def debug_message():
+    """نقطة نهاية للاختبار المباشر"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        user_text = data.get("text", "")
+        user_id = data.get("user_id", "test_user")
+        
+        if not user_text:
+            return jsonify({"error": "Missing 'text' parameter"}), 400
+        
+        # معالجة الرسالة
+        response = asyncio.run(process_flight_query(user_text, user_id))
+        
+        return jsonify({
+            "success": True,
+            "original_message": user_text,
+            "response": response,
+            "response_type": "list" if isinstance(response, list) else "text"
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Debug error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/debug/send-whatsapp", methods=["POST"])
+def debug_send_whatsapp():
+    """اختبار إرسال واتساب مباشر"""
+    try:
+        data = request.get_json()
+        
+        to = data.get("to")
+        message = data.get("message", "Test message")
+        
+        if not to:
+            return jsonify({"error": "Missing 'to' parameter"}), 400
+        
+        success = send_whatsapp_message(to, message)
+        
+        return jsonify({
+            "success": success,
+            "to": to,
+            "message": message
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ================== Simulated Webhook ==================
+@app.route("/simulate-webhook", methods=["POST"])
+def simulate_webhook():
+    """محاكاة استقبال ويب هوك للاختبار"""
+    try:
+        data = request.get_json()
+        
+        # محاكاة بيانات الويب هوك
+        simulated_data = {
+            "object": "whatsapp_business_account",
+            "entry": [{
+                "changes": [{
+                    "value": {
+                        "messages": [{
+                            "from": data.get("from", "201234567890"),
+                            "id": "test_" + datetime.now().strftime("%Y%m%d%H%M%S"),
+                            "timestamp": str(int(datetime.now().timestamp())),
+                            "text": {
+                                "body": data.get("text", "Test message")
+                            },
+                            "type": "text"
+                        }]
+                    }
+                }]
+            }]
+        }
+        
+        # معالجة البيانات
+        return whatsapp_webhook_with_data(simulated_data)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def whatsapp_webhook_with_data(data):
+    """نسخة معزولة من ويب هوك للاختبار"""
+    try:
+        if data.get("object") != "whatsapp_business_account":
+            return jsonify({"status": "ignored"}), 200
+        
+        entries = data.get("entry", [])
+        
+        for entry in entries:
+            changes = entry.get("changes", [])
+            
+            for change in changes:
+                value = change.get("value", {})
+                
+                if "messages" in value:
+                    messages = value.get("messages", [])
+                    
+                    for message in messages:
+                        if message.get("type") == "text":
+                            user_text = message["text"]["body"]
+                            user_id = message["from"]
+                            
+                            logger.info(f"🔍 Simulated message from {user_id}: {user_text}")
+                            
+                            # معالجة الرسالة
+                            response = asyncio.run(process_flight_query(user_text, user_id))
+                            
+                            return jsonify({
+                                "processed": True,
+                                "user_id": user_id,
+                                "user_message": user_text,
+                                "bot_response": response,
+                                "response_sent": True if response else False
+                            }), 200
+        
+        return jsonify({"status": "no_messages"}), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Simulated webhook error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    
 # ================== Run Application ==================
 if __name__ == "__main__":
-    # إعداد قاعدة البيانات
-    setup_database()
+    # التحقق من المتغيرات البيئية
+    required_vars = ["WHATSAPP_TOKEN", "PHONE_NUMBER_ID", "VERIFY_TOKEN"]
+    missing_vars = [var for var in required_vars if not os.getenv(var)]
     
-    # تهيئة الأنظمة
-    with app.app_context():
-        flight_system.init_app(app)
-        nlp_engine.init_app(app)
+    if missing_vars:
+        logger.error(f"❌ Missing environment variables: {missing_vars}")
+        logger.error("Please set them in your .env file")
+    else:
+        logger.info("✅ All required environment variables are set")
         
-        # اختبار اتصال Amadeus
-        try:
-            flight_system.get_amadeus_token()
-            logger.info("✅ Amadeus API connected successfully")
-        except Exception as e:
-            logger.warning(f"⚠️ Amadeus API not available: {e}")
-    
-    # عرض معلومات التهيئة
-    logger.info("=" * 50)
-    logger.info("🚀 Flight Bot WhatsApp Started")
-    logger.info(f"📱 WhatsApp API: {'Configured' if WHATSAPP_ACCESS_TOKEN else 'Not Configured'}")
-    logger.info(f"🌐 Webhook URL: https://your-render-url.onrender.com/webhook")
-    logger.info(f"🔐 Verify Token: {WHATSAPP_VERIFY_TOKEN}")
-    logger.info("=" * 50)
-    
-    # تشغيل التطبيق
-    port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+        # إعداد قاعدة البيانات
+        setup_database()
+        
+        with app.app_context():
+            # تهئة الأنظمة
+            flight_system.init_app(app)
+            nlp_engine.init_app(app)
+            
+            # التحقق من اتصال Amadeus
+            try:
+                flight_system.get_amadeus_token()
+                logger.info("✅ Amadeus API connected successfully")
+            except Exception as e:
+                logger.warning(f"⚠️ Amadeus API not available: {e}")
+        
+        # تشغيل التطبيق
+        port = int(os.getenv("PORT", 5000))
+        logger.info(f"🚀 Starting Flight WhatsApp Bot on port {port}")
+        app.run(host="0.0.0.0", port=port, debug=True)
